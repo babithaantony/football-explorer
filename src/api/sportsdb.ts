@@ -5,7 +5,7 @@ import type {
   SportsDbTeam,
 } from "@/types/sportsdb";
 
-const BASE = "https://www.thesportsdb.com/api/v1/json/1";
+const BASE = "https://www.thesportsdb.com/api/v1/json/3";
 
 async function fetchJson<T>(
   url: string,

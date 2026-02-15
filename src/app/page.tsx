@@ -6,17 +6,13 @@ import type { SportsDbLeague, SportsDbTeam } from "@/types/sportsdb";
 import LeagueSelect from "@/components/LeagueSelect";
 import TeamList from "@/components/TeamList";
 import { filterByQuery, sortTeams, type SortDir, type SortKey } from "@/utils/teamSelectors";
+import { useTemas } from "../hooks/useTeams";;
+
 
 type LoadState = "idle" | "loading" | "success" | "error";
 
 export default function Page() {
-  const [leagues, setLeagues] = useState<SportsDbLeague[]>([]);
   const [leagueId, setLeagueId] = useState<string>("");
-
-  const [teams, setTeams] = useState<SportsDbTeam[]>([]);
-  const [loadState, setLoadState] = useState<LoadState>("idle");
-  const [errorMsg, setErrorMsg] = useState<string>("");
-
   // basic search + sort (starter for “data handling fundamentals”)
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
@@ -24,58 +20,8 @@ export default function Page() {
 
   const abortRef = useRef<AbortController | null>(null);
 
-  // Load leagues once
-  useEffect(() => {
-    let cancelled = false;
+  const {leagues, teams, loadState, errorMsg} = useTemas(leagueId);
 
-    (async () => {
-      try {
-        const data = await getAllLeagues();
-        if (cancelled) return;
-        setLeagues(data);
-      } catch (e) {
-        // keep it simple for now
-        console.error(e);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Load teams when league changes
-  useEffect(() => {
-    if (!leagueId) {
-      setTeams([]);
-      setLoadState("idle");
-      setErrorMsg("");
-      return;
-    }
-
-    abortRef.current?.abort();
-    const ac = new AbortController();
-    abortRef.current = ac;
-
-    setLoadState("loading");
-    setErrorMsg("");
-
-    (async () => {
-      try {
-        const data = await getTeamsByLeagueId(leagueId, { signal: ac.signal });
-        setTeams(data);
-        setLoadState("success");
-      } catch (e: unknown) {
-        if (e instanceof DOMException && e.name === "AbortError") return;
-        setLoadState("error");
-        setErrorMsg(e instanceof Error ? e.message : "Something went wrong");
-      }
-    })();
-
-    return () => {
-      ac.abort();
-    };
-  }, [leagueId]);
 
   const visibleTeams = useMemo(() => {
     const filtered = filterByQuery(teams, query);
