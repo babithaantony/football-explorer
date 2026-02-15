@@ -8,9 +8,6 @@ import TeamList from "@/components/TeamList";
 import { filterByQuery, sortTeams, type SortDir, type SortKey } from "@/utils/teamSelectors";
 import { useTemas } from "../hooks/useTeams";;
 
-
-type LoadState = "idle" | "loading" | "success" | "error";
-
 export default function Page() {
   const [leagueId, setLeagueId] = useState<string>("");
   // basic search + sort (starter for “data handling fundamentals”)
@@ -18,9 +15,7 @@ export default function Page() {
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
-  const abortRef = useRef<AbortController | null>(null);
-
-  const {leagues, teams, loadState, errorMsg} = useTemas(leagueId);
+  const {leagues, teams, loadState, errorMsg, reFetch} = useTemas(leagueId);
 
 
   const visibleTeams = useMemo(() => {
@@ -86,7 +81,7 @@ export default function Page() {
           <div style={{ opacity: 0.9 }}>{errorMsg}</div>
           <button
             style={{ marginTop: 10, padding: "8px 10px", borderRadius: 10, border: "1px solid #ccc" }}
-            onClick={() => setLeagueId((x) => x)} // triggers effect rerun in interview? Not reliably. We'll fix this later.
+            onClick={reFetch} // triggers effect rerun in interview? Not reliably. We'll fix this later.
           >
             Retry
           </button>

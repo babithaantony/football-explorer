@@ -1,8 +1,10 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { SportsDbLeague, SportsDbTeam } from '../types/sportsdb';
 import { getAllLeagues, getTeamsByLeagueId } from "@/api/sportsdb";
 
-type LoadState = "idle" | "loading" | "success" | "error";
+type LoadState = "idle" | "loading" | "success" | "error" | false | true;
+
+const cache = new Map<string, SportsDbTeam[]>();
 
 
 type UseTeamReturnType = {
@@ -10,6 +12,7 @@ type UseTeamReturnType = {
     teams: SportsDbTeam[] | [],
     loadState: LoadState,
     errorMsg: string,
+    reFetch: () => void;
 }
 
 export const useTemas = (leagueId: string): UseTeamReturnType => {
@@ -39,44 +42,59 @@ export const useTemas = (leagueId: string): UseTeamReturnType => {
         
     }, []);
 
-    useEffect(() => {
-        if (!leagueId) {
-        setTeams([]);
-        setLoadState("idle");
-        setErrorMsg("");
-        return;
-        }
+    const load = useCallback(async (force: boolean) => {
+            if (!leagueId) {
+                setTeams([]);
+                setLoadState("idle");
+                setErrorMsg("");
+                return;
+            }
 
-        abortRef.current?.abort();
-        const ac = new AbortController();
-        abortRef.current = ac;
+            if (!force) {
+                const cached = cache.get(leagueId);
+                if (cached) {
+                    setTeams(cached);
+                    setLoadState(false);
+                    setErrorMsg("");
+                return;
+                }
+            }
 
-        setLoadState("loading");
-        setErrorMsg("");
+            abortRef.current?.abort();
+            const ac = new AbortController();
+            abortRef.current = ac;
 
-        (async () => {
-        try {
-            const data = await getTeamsByLeagueId(leagueId, { signal: ac.signal });
-            setTeams(data);
-            setLoadState("success");
-        } catch (e: unknown) {
-            if (e instanceof DOMException && e.name === "AbortError") return;
-            setLoadState("error");
-            setErrorMsg(e instanceof Error ? e.message : "Something went wrong");
-        }
-        })();
+            setLoadState("loading");
+            setErrorMsg("");
 
-        return () => {
-        ac.abort();
-        };
-    }, [leagueId]);
+             try {
+                const data = await getTeamsByLeagueId(leagueId, { signal: ac.signal });
+                setTeams(data);
+                cache.set(leagueId, data);
+                setLoadState("success");
+            } catch (e: unknown) {
+                if (e instanceof DOMException && e.name === "AbortError") return;
+                setLoadState("error");
+                setErrorMsg(e instanceof Error ? e.message : "Something went wrong");
+            }
+        
+        }, [leagueId])
 
+     useEffect(() => {
+        void load(false);
+        return () => abortRef.current?.abort();
+    }, [load]);
+
+    const reFetch = useCallback(() => {
+        void load(true);
+    }, [load])
 
     return {
     leagues,
     teams,
     loadState,
-    errorMsg
+    errorMsg,
+    reFetch
   };
 
 }
